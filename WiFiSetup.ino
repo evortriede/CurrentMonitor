@@ -4,11 +4,7 @@ typedef struct
   char pass[25];
 } saved_hotspot_t;
 
-saved_hotspot_t savedHotspots[]={{"TP-Link_32E6", "34652398"}
-                                ,{"jenanderic", "jenloveseric"}
-                                ,{"HappyPenguin", "EfvcKWV7DC"}
-                                ,{"NETGEAR10", "modernrosebud455"}
-                                };
+#include <hotspots.h>
                                 
 void *getLocalHotspot()
 {
