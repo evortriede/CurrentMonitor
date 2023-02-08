@@ -1,95 +1,5 @@
-#include <fsm.h>
-
-#include <GenericProtocol.h>
-
-#include "Arduino.h"
-#include "heltec.h"
-#include <WiFi.h>
-#include <WiFiClient.h>
-#include <WebServer.h>
-#include <Update.h>
-#include <esp_log.h>
-#include <nvs.h>
-
-WiFiServer telnetServer(23);
-WiFiClient telnetClient;
-WebServer server(80);
-
-typedef struct
-{
-  char ssid[25];
-  char pass[25];
-  char captive_ssid[25];
-  char captive_pass[25];
-  char modbusServer[25];
-  int sf;
-  int frequency;
-} config_data_t;
-
-config_data_t configData={"Pixel_7641","ericlovesjen","CurrentMonitor","","192.168.0.1",7,60};
-
-/*
- * Server Index Page
- */
- 
-const char* serverIndex = 
-"<script src='https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js'></script>"
-"<form method='POST' action='#' enctype='multipart/form-data' id='upload_form'>"
-   "<input type='file' name='update'>"
-        "<input type='submit' value='Update'>"
-    "</form>"
- "<div id='prg'>progress: 0%</div>"
- "<script>"
-  "$('form').submit(function(e){"
-  "e.preventDefault();"
-  "var form = $('#upload_form')[0];"
-  "var data = new FormData(form);"
-  " $.ajax({"
-  "url: '/update',"
-  "type: 'POST',"
-  "data: data,"
-  "contentType: false,"
-  "processData:false,"
-  "xhr: function() {"
-  "var xhr = new window.XMLHttpRequest();"
-  "xhr.upload.addEventListener('progress', function(evt) {"
-  "if (evt.lengthComputable) {"
-  "var per = evt.loaded / evt.total;"
-  "$('#prg').html('progress: ' + Math.round(per*100) + '%');"
-  "}"
-  "}, false);"
-  "return xhr;"
-  "},"
-  "success:function(d, s) {"
-  "console.log('success!')" 
- "},"
- "error: function (a, b, c) {"
- "}"
- "});"
- "});"
- "</script>";
-
-static const char rootFmt[] PROGMEM =R"(
-<html>
-  <head>
-  </head>
-  <body>
-    <div style='font-size:250%%'>
-      <form action="/set" method="GET">
-        SSID to join <input type="text" name="ssid" style="font-size:40px" value="%s"></input><br>
-        Password for SSID to join <input type="text" name="pass" style="font-size:40px" value="%s"></input><br>
-        SSID for Captive Net <input type="text" name="captive_ssid" style="font-size:40px" value="%s"></input><br>
-        Password for Captive Net SSID <input type="text" name="captive_pass" style="font-size:40px" value="%s"></input><br>
-        Spreading Factor (7-12) <input type="text" name="sf" style="font-size:40px" value="%i"></input><br>
-        Mosbus Server ip <input type="text" name="modbus_server" style="font-size:40px" value="%s"></input><br>
-        Frequency to check tank level (in seconds) <input type="text" name="frequency" style="font-size:40px" value="%i"></input><br><br>
-        <input type="submit"></input>
-      </form>
-      <br><a href="/reboot">Reboot</a>
-    </div>
-  </body>
-</html>
-)";
+#include "CurrentMonitor.h"
+#include "pages.h"
 
 char rootMsg[4096];
 
@@ -189,14 +99,6 @@ void webServerSetup()
   server.begin();
 }
 
-
-bool wifiStaConnected=false;
-
-void wifiAPSetup();
-void displayIPs(int x, int y, boolean fSerialPrint);
-void wifiSTASetup();
-void *getLocalHotspot();
-
 void eepromSetup()
 {
   nvs_handle handle;
@@ -218,10 +120,6 @@ void eepromSetup()
                ,configData.frequency);
 }
 
-
-GenericProtocol gp;
-
-bool _connected=false;
 
 void loraSend(byte *rgch,int len)
 {
@@ -275,9 +173,6 @@ void logger(const char *msg)
   Serial.print(msg);
 }
 
-byte msg[100];
-char toPump[16];
-
 void gotData(byte *data,int len)
 {
   Serial.println("Got data");
@@ -285,6 +180,7 @@ void gotData(byte *data,int len)
    * Should be from CurrentRecorder to forward to the CL17 to ChlorinePump
    * controller.
    */
+  if (*data!='P') return;
   unsigned short *ps=(unsigned short *)&data[1];
   sprintf(toPump,"P%u\n",*ps);
   Serial.printf("Message to pump: %s",toPump);
@@ -359,41 +255,12 @@ void setup()
   gp.setOnDisconnect(&disconnected);
   gp.setLogMethod(&logger);
   gp.setTimeout(2000);
+  
+  //gp.setMonitorMode(true);
+  
   gp.start();
-
 }
 
-long lastSendTime = 0;        // last send time
-int x=0,y=0;
-int pinValue=0;
-const char *message="no current flowing\n";
-
-WiFiClient client;
-
-uint16_t transId=1;
-long timeToSendVolume=millis()+60000L;
-long timeToSendTurbidity=millis()+40000L;
-long timeToSendQuery=millis();
-long watchdog=0;
-int gallons=0;
-int turbidity=0;
-
-long transitionTime=0;
-int onDuration=0;
-int offDuration=0;
-int onTooLong=60000;
-int offTooShort=150000;
-char *highWaterUsage="WATER USAGE VERY HIGH\n";
-char gallonsMessage[30];
-
-void modbusLoop();
-void getTurbidity(long &timeToSend);
-void getVolume(long &timeToSend);
-void getConnection();
-
-char telnetBuf[128];
-char *telnetPut=telnetBuf;
-char msgBuf[50];
 
 /*
  * These messages represent the readings from the CL17 chlorine meter.
