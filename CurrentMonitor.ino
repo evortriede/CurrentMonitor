@@ -246,6 +246,9 @@ void setup()
 
   wifiAPSetup();
 
+  MDNS.begin(configData.captive_ssid);
+  MDNS.addService("http", "tcp", 80);
+
   webServerSetup();
   
   Serial.println("back in setup after WiFi setup");
