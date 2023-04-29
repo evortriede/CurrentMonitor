@@ -11,7 +11,6 @@
 #include <esp_log.h>
 #include <nvs.h>
 #include <ESPmDNS.h>
-#include "creds.h"
 
 WiFiServer telnetServer(23);
 WiFiClient telnetClient;
@@ -28,7 +27,7 @@ typedef struct
   int frequency;
 } config_data_t;
 
-config_data_t configData={SSID_,PASS_,"CurrentMonitor","","192.168.0.1",8,60};
+config_data_t configData={"","","CurrentMonitor","","192.168.0.1",8,60};
 
 bool wifiStaConnected=false;
 GenericProtocol gp;

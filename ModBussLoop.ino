@@ -107,7 +107,7 @@ void modbusLoop()
     else if (tid==volTid)
     {
       sendVal('r',val);
-      gallons = (719 * val) / 100;
+      gallons = (698 * val) / 100;
     }
   }
 
