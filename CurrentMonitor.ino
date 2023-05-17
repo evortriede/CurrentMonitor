@@ -264,6 +264,12 @@ void setup()
   gp.start();
 }
 
+void report(void *data, int len)
+{
+  gp.sendData(data,len);
+  gp.handler();
+}
+
 
 /*
  * These messages represent the readings from the CL17 chlorine meter.
@@ -277,8 +283,8 @@ void handleTelnetBuf()
   msgBuf[0]=telnetBuf[0];
   unsigned short *ps=(unsigned short*)(&msgBuf[1]);
   *ps=n;
-  gp.sendData((void *)msgBuf,3);
-  gp.handler();
+  
+  report((void *)msgBuf,3);
 }
 
 void handleTelnetCharacter(char ch)
@@ -294,70 +300,9 @@ void handleTelnetCharacter(char ch)
     *telnetPut=0;
   }
 }
-void loop() 
+
+void handleTelnet()
 {
-  if (_connected)
-  {
-    int newValue=digitalRead(testMode?0:12);
-    
-    if ((newValue != pinValue) || (millis()-lastSendTime)>=(1000*configData.frequency))
-    {
-      if (pinValue!=newValue) // transition
-      {
-        if (newValue) // transition from on to off
-        {
-          onDuration=millis()-transitionTime; // note on duration
-          timeToSendVolume=millis()+5000; // get tank reading in 5 seconds
-        }
-        else // transition from off to on
-        {
-          offDuration=millis()-transitionTime; // note off duration
-          if (offDuration < offTooShort)
-          {
-            Serial.printf("off too short %i\n",offDuration);
-            gp.sendData(highWaterUsage,1);
-            gp.handler();
-          }
-        }
-        transitionTime=millis();
-      }
-      else if (!newValue) // not a transition but on for configured timeout seconds or more
-      {
-        onDuration = millis()-transitionTime;
-        if (onDuration > onTooLong)
-        {
-          Serial.printf("on too long %i\n",onDuration);
-          gp.sendData(highWaterUsage,1);
-          gp.handler();
-        }
-      }
-      else // not a transition and we are accumulating offDuration
-      {
-        offDuration = millis()-transitionTime;
-      }
-      pinValue=newValue;
-      lastSendTime=millis();
-      sprintf(gallonsMessage,"%s %i gallons",(pinValue==0)?"on":"off",gallons);
-      message=(pinValue==0)?"current is flowing":"no current flowing";
-//      sprintf(msgBuf,"%s %i %i\n",message,onDuration,offDuration);
-      msgBuf[0]=message[0];
-      unsigned *pi=(unsigned*)(&msgBuf[1]);
-      pi[0]=onDuration;
-      pi[1]=offDuration;
-      gp.sendData((void *)msgBuf,9);
-      gp.handler();
-    }
-    delay(100);
-    Heltec.display->clear();
-    Heltec.display->drawStringMaxWidth(x, y, 128, gallonsMessage);
-    Heltec.display->display();
-    x = (x+1)%80;
-    y = (y+1)%60;
-    modbusLoop();
-  }
-  onLoRaReceive(LoRa.parsePacket());
-  gp.handler();
-  server.handleClient();
   unsigned long metricTracker=millis();
   if (telnetServer.hasClient())
   {
@@ -384,4 +329,76 @@ void loop()
       handleTelnetCharacter(telnetClient.read());
     }
   }
+}
+
+void checkForTransients()
+{
+  int newValue=digitalRead(testMode?0:12);
+  
+  if ((newValue != pinValue) || (millis()-lastSendTime)>=(1000*configData.frequency))
+  {
+    if (pinValue!=newValue) // transition
+    {
+      if (newValue) // transition from on to off
+      {
+        onDuration=millis()-transitionTime; // note on duration
+        timeToSendVolume=millis()+5000; // get tank reading in 5 seconds
+      }
+      else // transition from off to on
+      {
+        offDuration=millis()-transitionTime; // note off duration
+        if (offDuration < offTooShort)
+        {
+          Serial.printf("off too short %i\n",offDuration);
+          report(highWaterUsage,1);
+        }
+      }
+      transitionTime=millis();
+    }
+    else if (!newValue) // not a transition but on for configured timeout seconds or more
+    {
+      onDuration = millis()-transitionTime;
+      if (onDuration > onTooLong)
+      {
+        Serial.printf("on too long %i\n",onDuration);
+        report(highWaterUsage,1);
+      }
+    }
+    else // not a transition and we are accumulating offDuration
+    {
+      offDuration = millis()-transitionTime;
+    }
+    pinValue=newValue;
+    lastSendTime=millis();
+    sprintf(gallonsMessage,"%s %i gallons",(pinValue==0)?"on":"off",gallons);
+    message=(pinValue==0)?"current is flowing":"no current flowing";
+//      sprintf(msgBuf,"%s %i %i\n",message,onDuration,offDuration);
+    msgBuf[0]=message[0];
+    unsigned *pi=(unsigned*)(&msgBuf[1]);
+    pi[0]=onDuration;
+    pi[1]=offDuration;
+    report((void *)msgBuf,9);
+  }
+}
+
+void loop() 
+{
+  if (_connected)
+  {
+    checkForTransients();
+    if (displayTime<=millis())
+    {
+      Heltec.display->clear();
+      Heltec.display->drawStringMaxWidth(x, y, 128, gallonsMessage);
+      Heltec.display->display();
+      x = (x+1)%80;
+      y = (y+1)%60;
+      displayTime=millis()+100;
+    }
+    modbusLoop();
+  }
+  onLoRaReceive(LoRa.parsePacket());
+  gp.handler();
+  server.handleClient();
+  handleTelnet();
 }

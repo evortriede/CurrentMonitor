@@ -43,6 +43,7 @@ const char *message="no current flowing\n";
 
 WiFiClient client;
 
+long displayTime=0;
 uint16_t transId=1;
 uint16_t turbTid=0;
 uint16_t volTid=0;
