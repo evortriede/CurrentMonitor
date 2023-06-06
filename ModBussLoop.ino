@@ -77,8 +77,7 @@ void sendVal(byte tag, uint16_t val)
   msg[0]=tag;
   ps=(uint16_t*)&msg[1];
   *ps=val;
-  gp.sendData((void*)msg,3);
-  gp.handler();
+  report((void*)msg,3);
 }
 
 uint16_t swapBytes(uint16_t val)

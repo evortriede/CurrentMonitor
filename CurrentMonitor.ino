@@ -264,10 +264,30 @@ void setup()
   gp.start();
 }
 
+void sendToRecorder(void *data,int len)
+{
+  if (recorderServer.hasClient())
+  {
+    if (recorderClient) // already have one?
+    {
+      Serial.println("\nTrashing existing recorder connection\n");
+      recorderClient.stop();
+    }
+    recorderClient=recorderServer.available();
+    while (recorderClient.available()) recorderClient.read();
+    Serial.println("got a recorder connection");
+  }
+  if (recorderClient)
+  {
+    recorderClient.write((byte*)data,len);
+  }
+}
+
 void report(void *data, int len)
 {
   gp.sendData(data,len);
   gp.handler();
+  sendToRecorder(data,len);
 }
 
 
@@ -383,20 +403,17 @@ void checkForTransients()
 
 void loop() 
 {
-  if (_connected)
+  checkForTransients();
+  if (displayTime<=millis())
   {
-    checkForTransients();
-    if (displayTime<=millis())
-    {
-      Heltec.display->clear();
-      Heltec.display->drawStringMaxWidth(x, y, 128, gallonsMessage);
-      Heltec.display->display();
-      x = (x+1)%80;
-      y = (y+1)%60;
-      displayTime=millis()+100;
-    }
-    modbusLoop();
+    Heltec.display->clear();
+    Heltec.display->drawStringMaxWidth(x, y, 128, gallonsMessage);
+    Heltec.display->display();
+    x = (x+1)%80;
+    y = (y+1)%60;
+    displayTime=millis()+100;
   }
+  modbusLoop();
   onLoRaReceive(LoRa.parsePacket());
   gp.handler();
   server.handleClient();

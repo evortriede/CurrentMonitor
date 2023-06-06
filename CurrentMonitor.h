@@ -13,7 +13,9 @@
 #include <ESPmDNS.h>
 
 WiFiServer telnetServer(23);
+WiFiServer recorderServer(9023);
 WiFiClient telnetClient;
+WiFiClient recorderClient;
 WebServer server(80);
 
 typedef struct

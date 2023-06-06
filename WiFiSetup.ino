@@ -113,4 +113,7 @@ void wifiAPSetup()
   telnetServer.begin();
   telnetClient=telnetServer.available();
 
+  recorderServer.begin();
+  recorderClient=recorderServer.available();
+
 }
