@@ -37,17 +37,42 @@ void sendReadHoldingRegister(uint16_t registerNo, uint16_t transactionId)
   byte message[12];
   message[0]=transactionId>>8;
   message[1]=transactionId&0xff;
-  message[2]=0;
-  message[3]=0;
-  message[4]=0;
-  message[5]=6;
-  message[6]=0;
-  message[7]=3;
+  message[2]=0; // protocol id
+  message[3]=0; // protocol id
+  message[4]=0; // length lsb
+  message[5]=6; // length msb
+  message[6]=0; // unit id
+  message[7]=3; // function code (read holding registers)
   message[8]=registerNo>>8;
   message[9]=registerNo&0xff;
-  message[10]=0;
-  message[11]=1;
+  message[10]=0; // how many msb
+  message[11]=1; // how many lsb
   client.write(message,12);
+}
+
+void modbusWriteRegisters(uint16_t startingRegNo, uint16_t *rgVal, byte nVal)
+{
+  if (!wifiStaConnected) return;
+
+  if (!getConnection()) return;
+
+  byte message[22];
+  uint16_t *ps;
+  ps=(uint16_t*)(void*)&message[0];
+  *ps++=transId++;
+  if (transId==0) transId=1;
+  *ps++=0;
+  *ps++=8+(2*nVal);
+  *ps++=16;
+  *ps++=startingRegNo;
+  *ps++=nVal;
+  message[13]=nVal*2;
+  ps=(uint16_t*)(void*)&message[13];
+  for (int j=0;j<nVal;j++)
+  {
+    *ps++=*rgVal++;
+  }
+  client.write(message, 14+(2*nVal));
 }
 
 bool pollResponse(uint16_t &transactionId, uint16_t &respValue, uint16_t &swapRet)

@@ -71,6 +71,7 @@ uint16_t getUInt16(byte *msg);
 void sendReadHoldingRegister(uint16_t registerNo, uint16_t transactionId);
 bool pollResponse(uint16_t &transactionId, uint16_t &respValue);
 void sendVal(byte tag, uint16_t val);
+void modbusWriteRegisters(uint16_t startingRegNo, uint16_t *rgVal, byte nVal);
 
 char telnetBuf[128];
 char *telnetPut=telnetBuf;

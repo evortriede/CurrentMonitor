@@ -288,6 +288,19 @@ void report(void *data, int len)
   gp.sendData(data,len);
   gp.handler();
   sendToRecorder(data,len);
+  byte *pb=(byte*)data;
+  switch (*pb)
+  {
+    case 'c':
+      modbusWriteRegisters(1000, (uint16_t*)(void*)&pb[1], 4);
+      break;
+    case 'C':
+      modbusWriteRegisters(1004, (uint16_t*)(void*)&pb[1], 1);
+      break;
+    case 'P':
+      modbusWriteRegisters(1005, (uint16_t*)(void*)&pb[1], 1);
+      break;
+  }
 }
 
 
