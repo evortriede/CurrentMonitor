@@ -24,6 +24,12 @@ bool getConnection()
   return true;
 }
 
+bool getNewConnection()
+{
+  client.stop();
+  return getConnection();
+}
+
 uint16_t getUInt16(byte *msg)
 {
   uint16_t retVal=msg[0];
@@ -39,8 +45,8 @@ void sendReadHoldingRegister(uint16_t registerNo, uint16_t transactionId)
   message[1]=transactionId&0xff;
   message[2]=0; // protocol id
   message[3]=0; // protocol id
-  message[4]=0; // length lsb
-  message[5]=6; // length msb
+  message[4]=0; // length msb
+  message[5]=6; // length lsb
   message[6]=0; // unit id
   message[7]=3; // function code (read holding registers)
   message[8]=registerNo>>8;
@@ -58,27 +64,33 @@ void modbusWriteRegisters(uint16_t startingRegNo, uint16_t *rgVal, byte nVal)
 
   byte message[22];
   uint16_t *ps;
-  ps=(uint16_t*)(void*)&message[0];
-  *ps++=transId++;
+  message[0]=transId>>8;
+  message[1]=transId&0xff;
+  transId+=1;
   if (transId==0) transId=1;
-  *ps++=0;
-  *ps++=8+(2*nVal);
-  *ps++=16;
-  *ps++=startingRegNo;
-  *ps++=nVal;
-  message[13]=nVal*2;
+  message[2]=0; // protocol id
+  message[3]=0; // protocol id
+  message[4]=0; // length lsb
+  message[5]=7+(2*nVal); // length msb
+  message[6]=0; // unit id
+  message[7]=16; // function code (write holding registers)
+  message[8]=startingRegNo>>8;
+  message[9]=startingRegNo&0xff;
+  message[10]=0;
+  message[11]=nVal;
+  message[12]=nVal*2;
   ps=(uint16_t*)(void*)&message[13];
   for (int j=0;j<nVal;j++)
   {
     *ps++=*rgVal++;
   }
-  client.write(message, 14+(2*nVal));
+  client.write(message, 13+(2*nVal));
 }
 
 bool pollResponse(uint16_t &transactionId, uint16_t &respValue, uint16_t &swapRet)
 {
   byte message[12];
-  if (!client.available()) return false;
+  if (client.available()<10) return false;
   Serial.printf("available=%i\n",client.available());
   for (int i=0;client.available();i++)
   {
@@ -124,13 +136,18 @@ void modbusLoop()
   if (pollResponse(tid,val,swapVal))
   {
     Serial.printf("%i %i %04x\n",tid,val,swapVal);
-    if (tid==turbTid && val!=0)
+    if (tid && tid==turbTid)
     {
-      sendVal('T',val);
-      turbidity = val;
+      turbTid=0;
+      if (val!=0)
+      {
+        sendVal('T',val);
+        turbidity = val;
+      }
     }
-    else if (tid==volTid)
+    else if (tid && tid==volTid)
     {
+      volTid=0;
       sendVal('r',val);
       gallons = (698 * val) / 100;
     }
@@ -138,6 +155,10 @@ void modbusLoop()
 
   if (millis()>timeToSendVolume)
   {
+    if (volTid!=0)
+    {
+      if (!getNewConnection()) return;
+    }
     timeToSendVolume=millis()+(1000*configData.frequency);
     volTid=transId++;
     if (transId==0) transId=1; // 1-FFFF never 0
@@ -146,6 +167,10 @@ void modbusLoop()
 
   if (millis()>timeToSendTurbidity)
   {
+    if (turbTid!=0)
+    {
+      if (!getNewConnection()) return;
+    }
     timeToSendTurbidity=millis()+(1000*configData.frequency);
     turbTid=transId++;
     if (transId==0) transId=1; // 1-FFFF never 0
