@@ -19,6 +19,8 @@ bool getConnection()
         return false;
       }
       transId=1;
+      volTid=0;
+      turbTid=0;
     }
   }
   return true;
@@ -142,8 +144,8 @@ void modbusLoop()
       if (val!=0)
       {
         sendVal('T',val);
-        turbidity = val;
       }
+      turbidity = val;
     }
     else if (tid && tid==volTid)
     {
