@@ -216,26 +216,32 @@ int myprintf(const char *format, va_list list)
 
 void setup() 
 {
-  esp_log_set_vprintf(&myprintf);
+  //esp_log_set_vprintf(&myprintf);
   
-  Heltec.begin(true /*DisplayEnable Enable*/, 
+  Serial.begin(115200);
+
+	factory_display.init();
+	factory_display.clear();
+	factory_display.display();
+
+  Heltec.begin(false /*DisplayEnable Enable*/, 
                true /*Heltec.LoRa Disable*/, 
                true /*Serial Enable*/, 
                true /*PABOOST Enable*/, 
                BAND /*long BAND*/);
                
-  Serial.begin(115200);
-  
+  Serial.println("after heltec.begin");
+
   pinMode(12,INPUT_PULLUP);
   pinMode(0,INPUT_PULLUP);
   
-  Heltec.display->flipScreenVertically();
-  Heltec.display->setFont(ArialMT_Plain_16);
-  Heltec.display->setTextAlignment(TEXT_ALIGN_LEFT);
-  Heltec.display->setLogBuffer(5, 64);
-  Heltec.display->clear();
-  Heltec.display->drawStringMaxWidth(0, 0, 128, "about to set up LoRa");
-  Heltec.display->display();
+  //factory_display.flipScreenVertically();
+  factory_display.setFont(ArialMT_Plain_16);
+  factory_display.setTextAlignment(TEXT_ALIGN_LEFT);
+  factory_display.setLogBuffer(5, 64);
+  factory_display.clear();
+  factory_display.drawStringMaxWidth(0, 0, 128, "about to set up LoRa");
+  factory_display.display();
   
   eepromSetup();
   
@@ -419,9 +425,9 @@ void loop()
   checkForTransients();
   if (displayTime<=millis())
   {
-    Heltec.display->clear();
-    Heltec.display->drawStringMaxWidth(x, y, 128, gallonsMessage);
-    Heltec.display->display();
+    factory_display.clear();
+    factory_display.drawStringMaxWidth(x, y, 128, gallonsMessage);
+    factory_display.display();
     x = (x+1)%80;
     y = (y+1)%60;
     displayTime=millis()+100;

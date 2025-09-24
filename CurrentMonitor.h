@@ -11,6 +11,11 @@
 #include <esp_log.h>
 #include <nvs.h>
 #include <ESPmDNS.h>
+#include <Wire.h>  
+#include "HT_SSD1306Wire.h"
+#include "LoRaWan_APP.h"
+
+SSD1306Wire  factory_display(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_128_64, RST_OLED); // addr , freq , i2c group , resolution , rst
 
 WiFiServer telnetServer(23);
 WiFiServer recorderServer(9023);
